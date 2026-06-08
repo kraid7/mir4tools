@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+
+# Reference screenshots used during development (not part of the app)
+/pedras.png
+/compedras.png
+/sempedras.png

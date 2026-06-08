@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mir-bg: #0c0a08;
+  --color-mir-panel: #15110c;
+  --color-mir-border: #3a2e1c;
+  --color-mir-gold: #c9a85a;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: #0c0a08;
+  color: #e8e0d0;
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+}
