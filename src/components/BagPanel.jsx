@@ -58,6 +58,8 @@ export default function BagPanel({
   onEdit,
   onRemove,
   onDropToBag,
+  onClearSlots,
+  equippedCount = 0,
   highlight = [],
 }) {
   const [adding, setAdding] = useState(false)
@@ -87,7 +89,19 @@ export default function BagPanel({
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
           Bag
         </h2>
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          {onClearSlots && (
+            <button
+              type="button"
+              onClick={onClearSlots}
+              disabled={equippedCount === 0}
+              title="Move every equipped stone back to the bag and empty all slots"
+              className="rounded-md bg-rose-500/15 px-2 py-1 text-xs font-medium text-rose-200 hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500"
+            >
+              ⤓ Clear slots
+            </button>
+          )}
+          <div className="relative">
           <button
             type="button"
             onClick={() => setAdding((v) => !v)}
@@ -119,6 +133,7 @@ export default function BagPanel({
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
       <p className="mb-4 text-xs text-slate-500">
