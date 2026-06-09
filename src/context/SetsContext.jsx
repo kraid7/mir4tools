@@ -152,6 +152,22 @@ export function SetsProvider({ children }) {
       }),
     )
 
+  // Esvazia o set: move todas as pedras equipadas para a bolsa, deixando todos
+  // os slots vazios. Útil para refazer o deck do zero sem perder as pedras.
+  const unequipAllToBag = (id) =>
+    setSets((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s
+        const equipped = Object.values(s.stones || {})
+        if (equipped.length === 0) return s
+        return {
+          ...s,
+          stones: {},
+          bag: [...(s.bag ?? []), ...equipped.map((stone) => ({ id: uid(), stone }))],
+        }
+      }),
+    )
+
   // Equipa uma pedra da bolsa num slot. Se o slot já tinha uma pedra, ela é
   // trocada (volta para a bolsa). Só aplica se a pedra for compatível com o slot.
   const equipFromBag = (id, slotId, bagId) =>
@@ -201,6 +217,7 @@ export function SetsProvider({ children }) {
     updateBagStone,
     removeFromBag,
     unequipToBag,
+    unequipAllToBag,
     equipFromBag,
     addSets,
   }

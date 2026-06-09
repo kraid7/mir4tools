@@ -20,6 +20,7 @@ export default function SetEditor() {
     updateBagStone,
     removeFromBag,
     unequipToBag,
+    unequipAllToBag,
     equipFromBag,
   } = useSets()
 
@@ -77,6 +78,15 @@ export default function SetEditor() {
     if (name != null) renameSet(set.id, name)
   }
 
+  const equippedCount = Object.keys(stones).length
+  const handleClearToBag = () => {
+    if (equippedCount === 0) return
+    const ok = window.confirm(
+      `Move all ${equippedCount} equipped stone${equippedCount === 1 ? '' : 's'} back to the bag? Slots will be emptied so you can rebuild the deck.`,
+    )
+    if (ok) unequipAllToBag(set.id)
+  }
+
   return (
     <div className="min-h-screen bg-[#14142a] text-slate-200">
       <header className="border-b border-white/5">
@@ -106,6 +116,15 @@ export default function SetEditor() {
                 {set.name}
               </button>
             </div>
+            <button
+              type="button"
+              onClick={handleClearToBag}
+              disabled={equippedCount === 0}
+              title="Move every equipped stone back to the bag and empty all slots"
+              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/10 disabled:hover:bg-transparent disabled:hover:text-slate-300"
+            >
+              Clear slots → bag
+            </button>
           </div>
         </div>
       </header>
