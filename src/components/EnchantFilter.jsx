@@ -13,15 +13,32 @@ function formatValue(value, unit) {
   return unit === 'percent' ? `${n}%` : n
 }
 
-// Para um encantamento, retorna as pedras do set que o possuem, com o valor,
-// ordenadas do menor para o maior (sem valor vai pro fim).
-function entriesFor(stones, name) {
-  return Object.entries(stones || {})
-    .map(([slotId, stone]) => {
-      const en = stone.enchantments?.find(
+// Reúne as pedras do set (equipadas + bolsa) numa lista única para o filtro.
+function sourcesFrom(stones, bag) {
+  const equipped = Object.entries(stones || {}).map(([slotId, stone]) => ({
+    key: `slot:${slotId}`,
+    stone,
+    place: 'slot',
+    label: slotLabel(slotId),
+  }))
+  const inBag = (bag || []).map((item) => ({
+    key: `bag:${item.id}`,
+    stone: item.stone,
+    place: 'bag',
+    label: 'Bag',
+  }))
+  return [...equipped, ...inBag]
+}
+
+// Para um encantamento, retorna as pedras (equipadas e da bolsa) que o possuem,
+// com o valor, ordenadas do menor para o maior (sem valor vai pro fim).
+function entriesFor(sources, name) {
+  return sources
+    .map((src) => {
+      const en = src.stone.enchantments?.find(
         (e) => e.name.toLowerCase() === name.toLowerCase(),
       )
-      return en ? { slotId, stone, value: en.value, unit: en.unit } : null
+      return en ? { ...src, value: en.value, unit: en.unit } : null
     })
     .filter(Boolean)
     .sort((a, b) => {
@@ -32,24 +49,24 @@ function entriesFor(stones, name) {
 }
 
 // Filtro: escolha um ou mais encantamentos e veja, para cada um, as pedras do
-// set que o possuem e seus valores.
-export default function EnchantFilter({ stones }) {
-  const [selected, setSelected] = useState([])
+// set (equipadas e na bolsa) que o possuem e seus valores. Controlado pelo pai
+// para que a bolsa também consiga destacar as pedras correspondentes.
+export default function EnchantFilter({ stones, bag = [], selected, onChange }) {
   const [input, setInput] = useState('')
   const listId = useId()
+  const sources = sourcesFrom(stones, bag)
 
   const addEnchant = (e) => {
     e?.preventDefault()
     const name = input.trim()
     if (!name) return
-    setSelected((prev) =>
-      prev.some((p) => p.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name],
-    )
+    if (!selected.some((p) => p.toLowerCase() === name.toLowerCase())) {
+      onChange([...selected, name])
+    }
     setInput('')
   }
 
-  const removeEnchant = (name) =>
-    setSelected((prev) => prev.filter((p) => p !== name))
+  const removeEnchant = (name) => onChange(selected.filter((p) => p !== name))
 
   return (
     <section className="mt-8 rounded-xl border border-white/5 bg-[#17172c] p-5">
@@ -58,7 +75,7 @@ export default function EnchantFilter({ stones }) {
       </h2>
       <p className="mb-4 text-xs text-slate-500">
         Choose one or more enchantments to see the values found on this set's
-        stones.
+        stones — equipped and in the bag. Matching bag stones are highlighted.
       </p>
 
       <form onSubmit={addEnchant} className="flex gap-2">
@@ -97,7 +114,7 @@ export default function EnchantFilter({ stones }) {
       {selected.length > 0 && (
         <div className="mt-5 flex flex-col gap-5">
           {selected.map((name) => {
-            const entries = entriesFor(stones, name)
+            const entries = entriesFor(sources, name)
             const icon = enchantIconPath(name)
             return (
               <div key={name}>
@@ -129,16 +146,21 @@ export default function EnchantFilter({ stones }) {
                   <ul className="flex flex-col divide-y divide-white/5">
                     {entries.map((e) => (
                       <li
-                        key={e.slotId}
+                        key={e.key}
                         className="flex items-center justify-between gap-3 px-1 py-2 text-sm"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-slate-100">
-                            {buildStoneName(e.stone) || slotLabel(e.slotId)}
+                          <p className="flex items-center gap-2 truncate text-slate-100">
+                            <span className="truncate">
+                              {buildStoneName(e.stone) || e.label}
+                            </span>
+                            {e.place === 'bag' && (
+                              <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+                                Bag
+                              </span>
+                            )}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {slotLabel(e.slotId)}
-                          </p>
+                          <p className="text-xs text-slate-500">{e.label}</p>
                         </div>
                         <span className="shrink-0 font-semibold tabular-nums text-amber-200">
                           {formatValue(e.value, e.unit)}

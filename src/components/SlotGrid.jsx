@@ -18,7 +18,7 @@ function Panel({ title, hint, children }) {
 }
 
 // Grid de pedras: painel de Pedras Mágicas (3×3) e painel de Espectromite (1×3).
-export default function SlotGrid({ stones, onSlotClick }) {
+export default function SlotGrid({ stones, onSlotClick, onEquip, highlight = [] }) {
   return (
     <div className="flex flex-col gap-5">
       <Panel title="Magic Stones" hint="6× Tier 1+ · 3× Tier 2+">
@@ -28,6 +28,8 @@ export default function SlotGrid({ stones, onSlotClick }) {
             slot={slot}
             stone={stones[slot.id]}
             onClick={onSlotClick}
+            onEquip={onEquip}
+            highlight={highlight}
           />
         ))}
       </Panel>
@@ -39,6 +41,8 @@ export default function SlotGrid({ stones, onSlotClick }) {
             slot={slot}
             stone={stones[slot.id]}
             onClick={onSlotClick}
+            onEquip={onEquip}
+            highlight={highlight}
           />
         ))}
       </Panel>

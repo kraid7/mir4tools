@@ -3,15 +3,31 @@ import { Link, useParams } from 'react-router-dom'
 import SlotGrid from '../components/SlotGrid.jsx'
 import StoneForm from '../components/StoneForm.jsx'
 import EnchantFilter from '../components/EnchantFilter.jsx'
+import StatsPanel from '../components/StatsPanel.jsx'
+import BagPanel from '../components/BagPanel.jsx'
 import { useSets } from '../context/SetsContext.jsx'
 import { ALL_SLOTS } from '../data/slots.js'
 
 export default function SetEditor() {
   const { id } = useParams()
-  const { getSet, setStone, removeStone, renameSet, toggleFavorite } = useSets()
+  const {
+    getSet,
+    setStone,
+    removeStone,
+    renameSet,
+    toggleFavorite,
+    addToBag,
+    updateBagStone,
+    removeFromBag,
+    unequipToBag,
+    equipFromBag,
+  } = useSets()
 
   const set = getSet(id)
-  const [selectedSlotId, setSelectedSlotId] = useState(null)
+  // Estado do modal de cadastro. kind: 'slot' | 'bag-new' | 'bag-edit'.
+  const [editing, setEditing] = useState(null)
+  // Encantamentos selecionados no filtro (elevado p/ destacar pedras na bolsa).
+  const [filterEnchants, setFilterEnchants] = useState([])
 
   if (!set) {
     return (
@@ -25,16 +41,34 @@ export default function SetEditor() {
   }
 
   const stones = set.stones || {}
-  const selectedSlot = ALL_SLOTS.find((s) => s.id === selectedSlotId) ?? null
-  const closeForm = () => setSelectedSlotId(null)
+  const bag = set.bag || []
+  const closeForm = () => setEditing(null)
+
+  // Slot usado pelo StoneForm: real (do grid) ou sintético (bolsa, sem tier mínimo).
+  const editingSlot =
+    editing?.kind === 'slot'
+      ? ALL_SLOTS.find((s) => s.id === editing.slotId) ?? null
+      : editing
+        ? { id: 'bag', type: editing.stoneType, minTier: 1 }
+        : null
+
+  const editingStone =
+    editing?.kind === 'slot'
+      ? stones[editing.slotId] ?? null
+      : editing?.kind === 'bag-edit'
+        ? bag.find((b) => b.id === editing.bagId)?.stone ?? null
+        : null
 
   const saveStone = (stone) => {
-    setStone(set.id, selectedSlotId, stone)
+    if (editing.kind === 'slot') setStone(set.id, editing.slotId, stone)
+    else if (editing.kind === 'bag-new') addToBag(set.id, stone)
+    else if (editing.kind === 'bag-edit') updateBagStone(set.id, editing.bagId, stone)
     closeForm()
   }
 
   const handleRemove = () => {
-    removeStone(set.id, selectedSlotId)
+    if (editing.kind === 'slot') removeStone(set.id, editing.slotId)
+    else if (editing.kind === 'bag-edit') removeFromBag(set.id, editing.bagId)
     closeForm()
   }
 
@@ -46,7 +80,7 @@ export default function SetEditor() {
   return (
     <div className="min-h-screen bg-[#14142a] text-slate-200">
       <header className="border-b border-white/5">
-        <div className="mx-auto max-w-3xl px-6 py-6">
+        <div className="mx-auto max-w-7xl px-6 py-6">
           <Link to="/" className="text-sm text-slate-400 hover:text-amber-200">
             ← My sets
           </Link>
@@ -76,18 +110,54 @@ export default function SetEditor() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <SlotGrid stones={stones} onSlotClick={(slot) => setSelectedSlotId(slot.id)} />
-        <EnchantFilter stones={stones} />
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[280px_minmax(0,1fr)_300px]">
+          <aside className="order-2 xl:order-1">
+            <StatsPanel stones={stones} />
+          </aside>
+
+          <div className="order-1 xl:order-2">
+            <SlotGrid
+              stones={stones}
+              onSlotClick={(slot) => setEditing({ kind: 'slot', slotId: slot.id })}
+              onEquip={(slotId, bagId) => equipFromBag(set.id, slotId, bagId)}
+              highlight={filterEnchants}
+            />
+            <EnchantFilter
+              stones={stones}
+              bag={bag}
+              selected={filterEnchants}
+              onChange={setFilterEnchants}
+            />
+          </div>
+
+          <aside className="order-3">
+            <BagPanel
+              bag={bag}
+              highlight={filterEnchants}
+              onAdd={(stoneType) => setEditing({ kind: 'bag-new', stoneType })}
+              onEdit={(item) =>
+                setEditing({
+                  kind: 'bag-edit',
+                  bagId: item.id,
+                  stoneType: item.stone.type,
+                })
+              }
+              onRemove={(bagId) => removeFromBag(set.id, bagId)}
+              onDropToBag={(slotId) => unequipToBag(set.id, slotId)}
+            />
+          </aside>
+        </div>
       </main>
 
-      {selectedSlot && (
+      {editingSlot && (
         <StoneForm
-          slot={selectedSlot}
-          stone={stones[selectedSlotId] ?? null}
+          slot={editingSlot}
+          stone={editingStone}
           onSave={saveStone}
           onRemove={handleRemove}
           onClose={closeForm}
+          removeLabel={editing.kind === 'slot' ? 'Remove from slot' : 'Remove from bag'}
         />
       )}
     </div>

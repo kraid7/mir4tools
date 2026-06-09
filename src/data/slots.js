@@ -36,6 +36,9 @@ export const SPECTRO_SLOTS = [
 
 export const ALL_SLOTS = [...MAGIC_SLOTS, ...SPECTRO_SLOTS]
 
+// Tier máximo de uma pedra no jogo (vai até 2).
+export const MAX_TIER = 2
+
 // Numeral romano para exibir o tier (ex.: tier 2 -> "II").
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
 export const tierToRoman = (t) => ROMAN[t] ?? String(t)

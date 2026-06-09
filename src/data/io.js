@@ -51,5 +51,6 @@ export function parseImport(text) {
         s.stones && typeof s.stones === 'object' && !Array.isArray(s.stones)
           ? s.stones
           : {},
+      bag: Array.isArray(s.bag) ? s.bag : [],
     }))
 }

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { SLOT_TYPE, buildStoneName, tierToRoman } from '../data/slots.js'
+import { SLOT_TYPE, MAX_TIER, buildStoneName, tierToRoman } from '../data/slots.js'
 import {
   ATTRIBUTE_OPTIONS,
   RARITY_OPTIONS,
@@ -40,7 +40,14 @@ function initialState(slot, stone) {
   }
 }
 
-export default function StoneForm({ slot, stone, onSave, onRemove, onClose }) {
+export default function StoneForm({
+  slot,
+  stone,
+  onSave,
+  onRemove,
+  onClose,
+  removeLabel = 'Remove from slot',
+}) {
   const [form, setForm] = useState(() => initialState(slot, stone))
   const attrListId = useId()
   const rarityListId = useId()
@@ -84,6 +91,14 @@ export default function StoneForm({ slot, stone, onSave, onRemove, onClose }) {
 
   const tierTooLow = Number(form.tier) < slot.minTier
 
+  // Opções de tier: do mínimo do slot até o máximo do jogo (2). Inclui um valor
+  // legado acima do máximo, se uma pedra antiga já tiver sido salva assim.
+  const maxTier = Math.max(MAX_TIER, Number(form.tier) || 0)
+  const tierOptions = Array.from(
+    { length: maxTier - slot.minTier + 1 },
+    (_, i) => slot.minTier + i,
+  )
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (tierTooLow) return
@@ -119,8 +134,10 @@ export default function StoneForm({ slot, stone, onSave, onRemove, onClose }) {
               {stone ? 'Edit stone' : 'Add stone'}
             </h2>
             <p className="mt-0.5 text-xs text-slate-400">
-              {isMagic ? 'Magic Stone' : 'Spectromite'} · Slot min tier:{' '}
-              {tierToRoman(slot.minTier)}
+              {isMagic ? 'Magic Stone' : 'Spectromite'}
+              {slot.id !== 'bag' && (
+                <> · Slot min tier: {tierToRoman(slot.minTier)}</>
+              )}
             </p>
           </div>
           <button
@@ -176,24 +193,17 @@ export default function StoneForm({ slot, stone, onSave, onRemove, onClose }) {
 
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-slate-300">Tier</span>
-            <input
-              type="number"
-              min={slot.minTier}
-              step={1}
+            <select
               value={form.tier}
               onChange={(e) => set({ tier: e.target.value })}
-              className={[
-                'rounded-md border bg-[#0f0f22] px-3 py-2 text-slate-100 outline-none',
-                tierTooLow
-                  ? 'border-rose-500/70 focus:border-rose-400'
-                  : 'border-white/10 focus:border-amber-400/60',
-              ].join(' ')}
-            />
-            {tierTooLow && (
-              <span className="text-xs text-rose-400">
-                This slot requires Tier {tierToRoman(slot.minTier)} or higher.
-              </span>
-            )}
+              className="rounded-md border border-white/10 bg-[#0f0f22] px-3 py-2 text-slate-100 outline-none focus:border-amber-400/60"
+            >
+              {tierOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t} ({tierToRoman(t)})
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
@@ -314,7 +324,7 @@ export default function StoneForm({ slot, stone, onSave, onRemove, onClose }) {
                 onClick={onRemove}
                 className="rounded-md px-3 py-2 text-sm text-rose-300 hover:bg-rose-500/15"
               >
-                Remove from slot
+                {removeLabel}
               </button>
             )}
           </div>
