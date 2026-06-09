@@ -12,7 +12,7 @@ export const ATTRIBUTE_OPTIONS = [
   'of Destruction', // CRIT ATK DMG boost — gema azul
   'of Awakening', // All ATK DMG boost — gema amarela
   'of Growth', // Hunting EXP boost — gema laranja
-  'of Agility', // EVA — gema azul-marinho
+  'of Agility', // CRIT EVA — gema azul-marinho
   'of Antidemon', // Antidemon Power — gema escura
   'of Precision', // Accuracy — gema branca
 ]
@@ -27,7 +27,7 @@ export const ATTRIBUTE_FIXED_ENCHANT = {
   'of Destruction': 'CRIT ATK DMG Boost',
   'of Awakening': 'All ATK DMG Boost',
   'of Growth': 'Hunting EXP Boost',
-  'of Agility': 'EVA',
+  'of Agility': 'CRIT EVA',
   'of Antidemon': 'Antidemon Power',
   'of Precision': 'Accuracy',
 }
