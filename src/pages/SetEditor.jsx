@@ -127,21 +127,12 @@ export default function SetEditor() {
           </aside>
 
           <div className="order-1 xl:order-2">
-            <div className="mb-3 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={handleClearToBag}
-                disabled={equippedCount === 0}
-                title="Move every equipped stone back to the bag and empty all slots"
-                className="rounded-md bg-rose-500/15 px-3 py-1.5 text-sm font-medium text-rose-200 hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-slate-500"
-              >
-                ⤓ Empty all slots to bag
-              </button>
-            </div>
             <SlotGrid
               stones={stones}
               onSlotClick={(slot) => setEditing({ kind: 'slot', slotId: slot.id })}
               onEquip={(slotId, bagId) => equipFromBag(set.id, slotId, bagId)}
+              onClearSlots={handleClearToBag}
+              equippedCount={equippedCount}
               highlight={filterEnchants}
             />
             <EnchantFilter
