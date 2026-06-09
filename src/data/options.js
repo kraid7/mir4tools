@@ -17,6 +17,21 @@ export const ATTRIBUTE_OPTIONS = [
   'of Precision', // Accuracy — gema branca
 ]
 
+// Encantamento fixo (stat principal) de cada Pedra Mágica, definido pelo seu
+// atributo. Os nomes batem exatamente com a lista de enchantments.js.
+export const ATTRIBUTE_FIXED_ENCHANT = {
+  'of Vigor': 'HP',
+  'of Mana': 'MP',
+  'of Focus': 'Monster ATK DMG Boost',
+  'of Force': 'Monster DMG Reduction',
+  'of Destruction': 'CRIT ATK DMG Boost',
+  'of Awakening': 'All ATK DMG Boost',
+  'of Growth': 'Hunting EXP Boost',
+  'of Agility': 'EVA',
+  'of Antidemon': 'Antidemon Power',
+  'of Precision': 'Accuracy',
+}
+
 export const RARITY_OPTIONS = [
   'Common',
   'Uncommon',

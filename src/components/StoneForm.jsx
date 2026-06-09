@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { SLOT_TYPE, MAX_TIER, buildStoneName, tierToRoman } from '../data/slots.js'
 import {
   ATTRIBUTE_OPTIONS,
+  ATTRIBUTE_FIXED_ENCHANT,
   RARITY_OPTIONS,
   ENCHANT_UNIT,
 } from '../data/options.js'
@@ -19,16 +20,38 @@ const newEnchant = () => ({
   unit: ENCHANT_UNIT.PERCENT,
 })
 
+// Garante que a lista de encantamentos tenha o stat fixo do atributo no topo
+// (nome travado, unidade correta), reaproveitando uma linha já existente com o
+// mesmo nome para não duplicar. Linhas extras viram não-fixas.
+function reconcileFixed(enchantments, attribute) {
+  const fixedName = ATTRIBUTE_FIXED_ENCHANT[attribute]
+  const list = enchantments.map((e) => ({ ...e, fixed: false }))
+  if (!fixedName) return list
+  const unit = ENCHANT_UNIT_BY_NAME[fixedName] ?? ENCHANT_UNIT.PERCENT
+  const idx = list.findIndex((e) => e.name === fixedName)
+  let fixed
+  if (idx >= 0) {
+    fixed = { ...list[idx], name: fixedName, unit, fixed: true }
+    list.splice(idx, 1)
+  } else {
+    fixed = { ...newEnchant(), name: fixedName, unit, fixed: true }
+  }
+  return [fixed, ...list]
+}
+
 function initialState(slot, stone) {
+  const isMagic = slot.type === SLOT_TYPE.MAGIC
   if (stone) {
+    const attribute = stone.attribute ?? ''
+    const enchantments =
+      stone.enchantments?.map((e) => ({ ...e, id: e.id ?? newEnchant().id })) ??
+      []
     return {
-      attribute: stone.attribute ?? '',
+      attribute,
       rarity: stone.rarity ?? '',
       tier: stone.tier ?? slot.minTier,
       enhance: stone.enhance ?? 0,
-      enchantments:
-        stone.enchantments?.map((e) => ({ ...e, id: e.id ?? newEnchant().id })) ??
-        [],
+      enchantments: isMagic ? reconcileFixed(enchantments, attribute) : enchantments,
     }
   }
   return {
@@ -49,8 +72,6 @@ export default function StoneForm({
   removeLabel = 'Remove from slot',
 }) {
   const [form, setForm] = useState(() => initialState(slot, stone))
-  const attrListId = useId()
-  const rarityListId = useId()
   const enchantListId = useId()
 
   // Ao digitar/escolher o nome do encantamento, se for um conhecido, já define
@@ -70,6 +91,14 @@ export default function StoneForm({
   }, [onClose])
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
+
+  // Ao trocar o atributo, sincroniza o encantamento fixo (insere/atualiza/troca).
+  const setAttribute = (attribute) =>
+    setForm((f) => ({
+      ...f,
+      attribute,
+      enchantments: reconcileFixed(f.enchantments, attribute),
+    }))
 
   const setEnchant = (id, patch) =>
     set({
@@ -98,6 +127,13 @@ export default function StoneForm({
     { length: maxTier - slot.minTier + 1 },
     (_, i) => slot.minTier + i,
   )
+
+  // Opções dos selects de atributo/raridade. Se a pedra tiver um valor legado
+  // fora da lista oficial, ele é adicionado no topo para não se perder.
+  const withLegacy = (options, value) =>
+    !value || options.includes(value) ? options : [value, ...options]
+  const attributeOptions = withLegacy(ATTRIBUTE_OPTIONS, form.attribute)
+  const rarityOptions = withLegacy(RARITY_OPTIONS, form.rarity)
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -160,35 +196,35 @@ export default function StoneForm({
           {isMagic && (
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               <span className="text-slate-300">Attribute</span>
-              <input
-                list={attrListId}
+              <select
                 value={form.attribute}
-                onChange={(e) => set({ attribute: e.target.value })}
-                placeholder="e.g. of Force"
+                onChange={(e) => setAttribute(e.target.value)}
                 className="rounded-md border border-white/10 bg-[#0f0f22] px-3 py-2 text-slate-100 outline-none focus:border-amber-400/60"
-              />
-              <datalist id={attrListId}>
-                {ATTRIBUTE_OPTIONS.map((o) => (
-                  <option key={o} value={o} />
+              >
+                <option value="">— Select —</option>
+                {attributeOptions.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </label>
           )}
 
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-slate-300">Rarity</span>
-            <input
-              list={rarityListId}
+            <select
               value={form.rarity}
               onChange={(e) => set({ rarity: e.target.value })}
-              placeholder="e.g. Legendary"
               className="rounded-md border border-white/10 bg-[#0f0f22] px-3 py-2 text-slate-100 outline-none focus:border-amber-400/60"
-            />
-            <datalist id={rarityListId}>
-              {RARITY_OPTIONS.map((o) => (
-                <option key={o} value={o} />
+            >
+              <option value="">— Select —</option>
+              {rarityOptions.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
               ))}
-            </datalist>
+            </select>
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
@@ -251,13 +287,26 @@ export default function StoneForm({
                     <img src={iconPath} alt="" className="size-6 object-contain" />
                   )}
                 </span>
-                <input
-                  list={enchantListId}
-                  value={en.name}
-                  onChange={(e) => onEnchantName(en.id, e.target.value)}
-                  placeholder="Enchantment name"
-                  className="min-w-0 flex-1 rounded-md border border-white/10 bg-[#0f0f22] px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-amber-400/60"
-                />
+                {en.fixed ? (
+                  // Stat fixo do tipo da pedra: nome travado.
+                  <span
+                    className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-amber-400/20 bg-amber-400/5 px-2.5 py-1.5 text-sm text-amber-100"
+                    title="Fixed stat for this stone type"
+                  >
+                    <span className="min-w-0 truncate">{en.name}</span>
+                    <span className="shrink-0 text-[10px] uppercase tracking-wide text-amber-300/70">
+                      fixed
+                    </span>
+                  </span>
+                ) : (
+                  <input
+                    list={enchantListId}
+                    value={en.name}
+                    onChange={(e) => onEnchantName(en.id, e.target.value)}
+                    placeholder="Enchantment name"
+                    className="min-w-0 flex-1 rounded-md border border-white/10 bg-[#0f0f22] px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-amber-400/60"
+                  />
+                )}
                 <input
                   type="number"
                   step="any"
@@ -266,43 +315,57 @@ export default function StoneForm({
                   placeholder="Value"
                   className="w-24 rounded-md border border-white/10 bg-[#0f0f22] px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-amber-400/60"
                 />
-                {/* Toggle %/decimal */}
-                <div className="flex overflow-hidden rounded-md border border-white/10">
+                {en.fixed ? (
+                  // Unidade fica fixa (definida pelo stat), apenas exibida.
+                  <span
+                    className="flex h-[34px] w-[58px] shrink-0 items-center justify-center rounded-md border border-white/10 text-sm text-slate-400"
+                    title="Unit is fixed for this stat"
+                  >
+                    {en.unit === ENCHANT_UNIT.PERCENT ? '%' : '0,0'}
+                  </span>
+                ) : (
+                  <div className="flex overflow-hidden rounded-md border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setEnchant(en.id, { unit: ENCHANT_UNIT.PERCENT })}
+                      className={[
+                        'px-2 py-1.5 text-sm',
+                        en.unit === ENCHANT_UNIT.PERCENT
+                          ? 'bg-amber-500/30 text-amber-100'
+                          : 'text-slate-400 hover:bg-white/5',
+                      ].join(' ')}
+                      title="Percentage"
+                    >
+                      %
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEnchant(en.id, { unit: ENCHANT_UNIT.FLAT })}
+                      className={[
+                        'px-2 py-1.5 text-sm',
+                        en.unit === ENCHANT_UNIT.FLAT
+                          ? 'bg-amber-500/30 text-amber-100'
+                          : 'text-slate-400 hover:bg-white/5',
+                      ].join(' ')}
+                      title="Decimal/flat value"
+                    >
+                      0,0
+                    </button>
+                  </div>
+                )}
+                {en.fixed ? (
+                  // Sem remover: a linha fixa segue o atributo da pedra.
+                  <span className="size-[30px] shrink-0" />
+                ) : (
                   <button
                     type="button"
-                    onClick={() => setEnchant(en.id, { unit: ENCHANT_UNIT.PERCENT })}
-                    className={[
-                      'px-2 py-1.5 text-sm',
-                      en.unit === ENCHANT_UNIT.PERCENT
-                        ? 'bg-amber-500/30 text-amber-100'
-                        : 'text-slate-400 hover:bg-white/5',
-                    ].join(' ')}
-                    title="Percentage"
+                    onClick={() => removeEnchant(en.id)}
+                    className="rounded-md p-1.5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
+                    aria-label="Remove enchantment"
                   >
-                    %
+                    ✕
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setEnchant(en.id, { unit: ENCHANT_UNIT.FLAT })}
-                    className={[
-                      'px-2 py-1.5 text-sm',
-                      en.unit === ENCHANT_UNIT.FLAT
-                        ? 'bg-amber-500/30 text-amber-100'
-                        : 'text-slate-400 hover:bg-white/5',
-                    ].join(' ')}
-                    title="Decimal/flat value"
-                  >
-                    0,0
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeEnchant(en.id)}
-                  className="rounded-md p-1.5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
-                  aria-label="Remove enchantment"
-                >
-                  ✕
-                </button>
+                )}
               </div>
               )
             })}
