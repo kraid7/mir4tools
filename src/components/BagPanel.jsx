@@ -55,6 +55,7 @@ function MatchRow({ en }) {
 export default function BagPanel({
   bag = [],
   onAdd,
+  onImport,
   onEdit,
   onRemove,
   onDropToBag,
@@ -69,6 +70,14 @@ export default function BagPanel({
     const payload = getDragPayload(e)
     if (payload?.from === 'slot' && payload.slotId) onDropToBag(payload.slotId)
   }
+
+  // Com filtro ativo, a bolsa mostra SÓ as pedras que têm algum dos
+  // encantamentos filtrados; o resto é ocultado. (As equipadas ficam no grid e
+  // não são afetadas.) Sem filtro, mostra a bolsa inteira.
+  const filtering = highlight.length > 0
+  const visible = filtering
+    ? bag.filter((item) => matchedEnchantments(item.stone, highlight).length > 0)
+    : bag
 
   return (
     <section
@@ -87,7 +96,16 @@ export default function BagPanel({
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
           Bag
         </h2>
-        <div className="relative">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onImport}
+            className="rounded-md bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-200 hover:bg-amber-500/25"
+            title="Read a stone screenshot and auto-fill its enchantments"
+          >
+            ⤓ Image
+          </button>
+          <div className="relative">
           <button
             type="button"
             onClick={() => setAdding((v) => !v)}
@@ -119,6 +137,7 @@ export default function BagPanel({
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
       <p className="mb-4 text-xs text-slate-500">
@@ -130,9 +149,13 @@ export default function BagPanel({
         <p className="rounded-lg border border-dashed border-white/10 px-3 py-6 text-center text-sm text-slate-500">
           Bag is empty.
         </p>
+      ) : visible.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-white/10 px-3 py-6 text-center text-sm text-slate-500">
+          No stones match the filter.
+        </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {bag.map((item) => {
+          {visible.map((item) => {
             const matched = matchedEnchantments(item.stone, highlight)
             const isMatch = matched.length > 0
             return (

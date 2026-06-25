@@ -9,3 +9,7 @@ dist-ssr
 /pedras.png
 /compedras.png
 /sempedras.png
+/pedra.png
+
+# Tesseract language data (baixado do CDN em runtime, não versionar)
+*.traineddata

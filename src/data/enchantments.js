@@ -74,6 +74,89 @@ export const ENCHANTMENTS = [
   { name: 'Monster EVA Boost', unit: 'flat', icon: 'Ico_Status_AddNormalMonDodge.png' },
 ]
 
+// Nome oficial em PT-BR de cada stat (mapeado pelo nome em inglês). Extraído da
+// mesma API do MIR4 (languageCode=pt), cruzando pelo ícone. Usado só pelo OCR,
+// para reconhecer prints do jogo em português. O app continua armazenando o
+// nome canônico em inglês.
+export const ENCHANT_PT_ALIASES = {
+  HP: 'HP',
+  'HP % REGEN (per 10 sec)': 'REGENERAÇÃO DE % DE HP (cada 10s)',
+  MP: 'MP',
+  'MP % REGEN (per 10 sec)': 'REGENERAÇÃO DE % DE MP (cada 10s)',
+  'PHYS ATK': 'ATAQUE FÍSICO',
+  'Spell ATK': 'ATAQUE de Feitiço',
+  'PHYS DEF': 'DEFESA FÍSICA',
+  'Spell DEF': 'DEFESA contra feitiços',
+  Accuracy: 'Precisão',
+  EVA: 'EVASÃO',
+  CRIT: 'CRÍTICO',
+  'CRIT EVA': 'EVASÃO DE CRÍTICO',
+  'CRIT ATK DMG Boost': 'Aumento do DANO DE ATAQUE CRÍTICO',
+  'CRIT DMG Reduction': 'Redução do DANO CRÍTICO Recebido',
+  'Bash ATK DMG Boost': 'Aumento do DANO DE ATAQUE de Esmagamento',
+  'Bash DMG Reduction': 'Redução do DANO de Esmagamento Recebido',
+  'Antidemon Power': 'Poder Antidemônio',
+  'PvP ATK DMG Boost': 'Aumento do DANO DE ATAQUE em PvP',
+  'PvP DMG Reduction': 'Redução do DANO em PvP Recebido',
+  'Monster ATK DMG Boost': 'Aumento do DANO DE ATAQUE de Monstros',
+  'Boss ATK DMG Boost': 'Aumento de DANO DE ATAQUE do Boss',
+  'Monster DMG Reduction': 'Redução do DANO Recebido de Monstros',
+  'Boss DMG Reduction': 'Redução do DANO Recebido do Boss',
+  'Skill ATK DMG Boost': 'Aumento de DANO DE ATAQUE de Habilidade',
+  'Skill DMG Reduction': 'Redução do DANO de Habilidade Recebido',
+  'All ATK DMG Boost': 'Aumento de Todo o DANO DE ATAQUE',
+  'All DMG Reduction': 'Redução de Todo o DANO Recebido',
+  'Stun Success Boost': 'Aumento da Probabilidade de Sucesso de Atordoar',
+  'Stun RES Boost': 'Aumento de RESISTÊNCIA a Atordoar',
+  'Debilitation Success Boost': 'Aumento da Probabilidade de Sucesso de Debilitação',
+  'Debilitation RES Boost': 'Aumento de RESISTÊNCIA à Debilitação',
+  'Silence Success Boost': 'Aumento da Probabilidade de Sucesso de Silenciar',
+  'Silence RES Boost': 'Aumento de RESISTÊNCIA a Silenciar',
+  'Hunting EXP Boost': 'Aumento de EXP de Caça',
+  'Hunting Copper Gain Boost': 'Aumento de Ganho de Cobre de Caça',
+  'Energy Gain Boost': 'Aumento de Ganho de Energia',
+  'Darksteel Gain Boost': 'Aumento de Ganho de Aço Negro',
+  'Drop Chance Boost': 'Aumento da Probabilidade de Obtenção',
+  'Lucky Drop Chance Boost': 'Aumento da Probabilidade de Obtenção de Sorte',
+  'Gathering Boost': 'Aceleramento do Tempo de Recolha',
+  'Energy Gathering Boost': 'Aceleramento do Tempo de Recolha de Energia',
+  'Mining Boost': 'Aceleramento de Tempo de Mineração',
+  'Skill Cooldown Reduction': 'Redução do Cooldown de Habilidade',
+  'MP Cost Reduction': 'Redução do Custo de MP',
+  'Knockdown Success Boost': 'Aumento da Probabilidade de Sucesso de Derrubar',
+  'Knockdown RES Boost': 'Aumento de RESISTÊNCIA a Derrubar',
+  'HP Potion Effect Boost': 'Aumento do Efeito da Poção de HP',
+  'MP Potion Effect Boost': 'Aumento do Efeito da Poção de MP',
+  "Skill HP Recovery Am't Boost": 'Aumento de Quantidade de Recuperação de HP de Habilidade',
+  Life: 'Vida',
+  'Basic ATK DMG Boost': 'Aumento do DANO DE ATAQUE Básico',
+  'Basic DMG Reduction': 'Redução do DANO DE ATAQUE Básico Recebido',
+  'Divine Water Cooldown Reduction': 'Redução do Cooldown de Água Divina',
+  'Box Open Time Boost': 'Aceleramento do Tempo de Abertura de Caixa',
+  'Solitude Training Success Chance Boost': 'Aumento da Probabilidade no Sucesso de Treino Ermo',
+  'Equipment Enhancement Success Chance Boost (UC)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Equipamento (Incomum)',
+  'Equipment Enhancement Success Chance Boost (R)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Equipamento (Raro)',
+  'Equipment Enhancement Success Chance Boost (E)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Equipamento (Épico)',
+  'Equipment Enhancement Success Chance Boost (L)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Equipamento (Lendário)',
+  'Equipment Enhancement Success Chance Boost (UC-L)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Equipamento (de Incomum até Lendário)',
+  'Dragon Artifact Enhancement Success Chance Boost (R)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Artefato de Dragão (Raro)',
+  'Dragon Artifact Enhancement Success Chance Boost (E)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Artefato de Dragão (Épico)',
+  'Dragon Artifact Enhancement Success Chance Boost (L)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Artefato de Dragão (Lendário)',
+  'Dragon Artifact Enhancement Success Chance Boost (UC-L)':
+    'Aumento da Chance de Sucesso do Aprimoramento de Artefato de Dragão (de Incomum até Lendário)',
+  'Max Vigor Boost (sec)': 'Aumento de Vigor Máximo (segundos)',
+  'Monster Accuracy Boost': 'Aumento de Precisão em Monstros',
+  'Monster EVA Boost': 'Aumento de EVASÃO de Monstros',
+}
+
 const ENCHANT_BY_NAME = Object.fromEntries(ENCHANTMENTS.map((e) => [e.name, e]))
 
 // Mapa nome -> unidade, para preencher a unidade automaticamente ao escolher

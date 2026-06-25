@@ -7,12 +7,6 @@ function slotLabel(slotId) {
   return `${type === 'magic' ? 'Magic Stone' : 'Spectromite'} ${n}`
 }
 
-function formatValue(value, unit) {
-  if (value == null) return '—'
-  const n = Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })
-  return unit === 'percent' ? `${n}%` : n
-}
-
 // Reúne as pedras do set (equipadas + bolsa) numa lista única para o filtro.
 function sourcesFrom(stones, bag) {
   const equipped = Object.entries(stones || {}).map(([slotId, stone]) => ({
@@ -74,8 +68,8 @@ export default function EnchantFilter({ stones, bag = [], selected, onChange }) 
         Filter by enchantment
       </h2>
       <p className="mb-4 text-xs text-slate-500">
-        Choose one or more enchantments to see the values found on this set's
-        stones — equipped and in the bag. Matching bag stones are highlighted.
+        Choose one or more enchantments to see which of this set's stones have
+        them — equipped and in the bag. The bag shows only matching stones.
       </p>
 
       <form onSubmit={addEnchant} className="flex gap-2">
@@ -162,9 +156,6 @@ export default function EnchantFilter({ stones, bag = [], selected, onChange }) 
                           </p>
                           <p className="text-xs text-slate-500">{e.label}</p>
                         </div>
-                        <span className="shrink-0 font-semibold tabular-nums text-amber-200">
-                          {formatValue(e.value, e.unit)}
-                        </span>
                       </li>
                     ))}
                   </ul>

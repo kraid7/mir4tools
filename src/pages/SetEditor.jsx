@@ -5,6 +5,7 @@ import StoneForm from '../components/StoneForm.jsx'
 import EnchantFilter from '../components/EnchantFilter.jsx'
 import StatsPanel from '../components/StatsPanel.jsx'
 import BagPanel from '../components/BagPanel.jsx'
+import ImageImport from '../components/ImageImport.jsx'
 import { useSets } from '../context/SetsContext.jsx'
 import { ALL_SLOTS } from '../data/slots.js'
 
@@ -29,6 +30,8 @@ export default function SetEditor() {
   const [editing, setEditing] = useState(null)
   // Encantamentos selecionados no filtro (elevado p/ destacar pedras na bolsa).
   const [filterEnchants, setFilterEnchants] = useState([])
+  // Abre o modal de importação por imagem (OCR -> bolsa).
+  const [importing, setImporting] = useState(false)
 
   if (!set) {
     return (
@@ -148,6 +151,7 @@ export default function SetEditor() {
               bag={bag}
               highlight={filterEnchants}
               onAdd={(stoneType) => setEditing({ kind: 'bag-new', stoneType })}
+              onImport={() => setImporting(true)}
               onEdit={(item) =>
                 setEditing({
                   kind: 'bag-edit',
@@ -170,6 +174,16 @@ export default function SetEditor() {
           onRemove={handleRemove}
           onClose={closeForm}
           removeLabel={editing.kind === 'slot' ? 'Remove from slot' : 'Remove from bag'}
+        />
+      )}
+
+      {importing && (
+        <ImageImport
+          onConfirm={(stone) => {
+            addToBag(set.id, stone)
+            setImporting(false)
+          }}
+          onClose={() => setImporting(false)}
         />
       )}
     </div>
