@@ -60,6 +60,9 @@ export default function BagPanel({
   onRemove,
   onDropToBag,
   highlight = [],
+  pickedId = null,
+  onPick,
+  onQuickEquip,
 }) {
   const [adding, setAdding] = useState(false)
   const [over, setOver] = useState(false)
@@ -141,8 +144,9 @@ export default function BagPanel({
         </div>
       </div>
       <p className="mb-4 text-xs text-slate-500">
-        Spare stones. Drag onto a slot to equip/swap, or drop an equipped stone here
-        to store it.
+        Spare stones. Hit <span className="text-amber-300/80">⇦</span> to equip in the
+        first free slot, or click a stone to pick it and then click the slot you want
+        (dragging still works too).
       </p>
 
       {bag.length === 0 ? (
@@ -163,11 +167,14 @@ export default function BagPanel({
               key={item.id}
               draggable
               onDragStart={(e) => setDragPayload(e, { from: 'bag', bagId: item.id })}
+              onClick={() => onPick?.(item.id)}
               className={[
                 'group flex cursor-grab items-center gap-2.5 rounded-lg border p-2 active:cursor-grabbing',
-                isMatch
-                  ? 'border-amber-400/70 bg-amber-400/10 ring-1 ring-amber-400/40'
-                  : 'border-white/10 bg-[#0f0f22]',
+                pickedId === item.id
+                  ? 'border-emerald-400/70 bg-emerald-400/10 ring-2 ring-emerald-400/50'
+                  : isMatch
+                    ? 'border-amber-400/70 bg-amber-400/10 ring-1 ring-amber-400/40'
+                    : 'border-white/10 bg-[#0f0f22]',
               ].join(' ')}
             >
               <StoneIcon stone={item.stone} />
@@ -175,7 +182,11 @@ export default function BagPanel({
                 <p className="truncate text-sm font-medium text-slate-100">
                   {buildStoneName(item.stone) || 'Stone'}
                 </p>
-                {isMatch ? (
+                {pickedId === item.id ? (
+                  <p className="text-xs font-medium text-emerald-300">
+                    Now click a slot…
+                  </p>
+                ) : isMatch ? (
                   <span className="mt-0.5 flex flex-col gap-0.5">
                     {matched.map((en) => (
                       <MatchRow key={en.name} en={en} />
@@ -190,10 +201,25 @@ export default function BagPanel({
                   )
                 )}
               </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onQuickEquip?.(item)
+                }}
+                className="shrink-0 rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/30"
+                aria-label="Equip stone"
+                title="Equip in the first free compatible slot"
+              >
+                ⇦
+              </button>
               <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
                 <button
                   type="button"
-                  onClick={() => onEdit(item)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEdit(item)
+                  }}
                   className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-slate-200"
                   aria-label="Edit stone"
                   title="Edit"
@@ -202,7 +228,10 @@ export default function BagPanel({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onRemove(item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRemove(item.id)
+                  }}
                   className="rounded p-1 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
                   aria-label="Remove stone"
                   title="Remove"

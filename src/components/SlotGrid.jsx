@@ -1,4 +1,5 @@
-import { MAGIC_SLOTS, SPECTRO_SLOTS } from '../data/slots.js'
+import { MAGIC_SLOTS, SPECTRO_SLOTS, buildStoneName } from '../data/slots.js'
+import { canEquip } from '../context/SetsContext.jsx'
 import Slot from './Slot.jsx'
 
 function Panel({ title, hint, action, children }) {
@@ -28,7 +29,14 @@ export default function SlotGrid({
   onClearSlots,
   equippedCount = 0,
   highlight = [],
+  pickedStone = null,
+  onCancelPick,
 }) {
+  // Estado de destaque de um slot quando há pedra selecionada na bolsa:
+  // 'ok' = pode receber a pedra, 'no' = incompatível (tipo/tier).
+  const pickState = (slot) =>
+    pickedStone ? (canEquip(pickedStone, slot) ? 'ok' : 'no') : null
+
   const clearAction = onClearSlots ? (
     <button
       type="button"
@@ -43,6 +51,23 @@ export default function SlotGrid({
 
   return (
     <div className="flex flex-col gap-5">
+      {pickedStone && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-400/50 bg-amber-400/10 px-4 py-2.5 text-sm text-amber-100">
+          <span className="min-w-0 flex-1">
+            Pick a slot for{' '}
+            <strong className="font-semibold">{buildStoneName(pickedStone)}</strong> — only
+            the highlighted slots accept it.
+          </span>
+          <button
+            type="button"
+            onClick={onCancelPick}
+            className="shrink-0 rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-100 hover:bg-white/20"
+          >
+            Cancel (Esc)
+          </button>
+        </div>
+      )}
+
       <Panel title="Magic Stones" hint="6× Tier 1+ · 3× Tier 2+" action={clearAction}>
         {MAGIC_SLOTS.map((slot) => (
           <Slot
@@ -52,6 +77,7 @@ export default function SlotGrid({
             onClick={onSlotClick}
             onEquip={onEquip}
             highlight={highlight}
+            pickState={pickState(slot)}
           />
         ))}
       </Panel>
@@ -65,6 +91,7 @@ export default function SlotGrid({
             onClick={onSlotClick}
             onEquip={onEquip}
             highlight={highlight}
+            pickState={pickState(slot)}
           />
         ))}
       </Panel>

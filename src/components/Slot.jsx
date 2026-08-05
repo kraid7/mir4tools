@@ -9,7 +9,16 @@ import { enchantIconPath } from '../data/enchantments.js'
 // neutra estilizada como fallback. Feedback visual de "slot preenchido".
 // Suporta arrastar-e-soltar: arraste a pedra equipada para fora, ou solte uma
 // pedra da bolsa aqui para equipar/trocar.
-export default function Slot({ slot, stone, onClick, onEquip, highlight = [] }) {
+// pickState: quando há uma pedra selecionada na bolsa (clique em vez de
+// arrastar), 'ok' marca este slot como alvo válido e 'no' como incompatível.
+export default function Slot({
+  slot,
+  stone,
+  onClick,
+  onEquip,
+  highlight = [],
+  pickState = null,
+}) {
   const filled = Boolean(stone)
   const name = buildStoneName(stone)
   const [imgError, setImgError] = useState(false)
@@ -38,16 +47,29 @@ export default function Slot({ slot, stone, onClick, onEquip, highlight = [] }) 
       }}
       onDragLeave={() => setOver(false)}
       onDrop={handleDrop}
-      title={filled ? name : `Empty slot — Min tier ${slot.minTier}`}
+      title={
+        pickState === 'ok'
+          ? filled
+            ? `Click to swap — ${name}`
+            : 'Click to equip here'
+          : pickState === 'no'
+            ? `Incompatible slot — Min tier ${slot.minTier}`
+            : filled
+              ? name
+              : `Empty slot — Min tier ${slot.minTier}`
+      }
       className={[
         'group flex w-full items-center gap-3 rounded-lg border p-1.5 text-left transition',
-        over
-          ? 'border-amber-400/70 bg-amber-400/15'
-          : matched.length > 0
-            ? 'border-amber-400/60 bg-amber-400/10 ring-1 ring-amber-400/40'
-            : filled
-              ? 'border-amber-400/25 bg-amber-400/5 hover:bg-amber-400/10'
-              : 'border-transparent hover:bg-white/5',
+        pickState === 'no' ? 'cursor-not-allowed opacity-40' : '',
+        pickState === 'ok'
+          ? 'border-emerald-400/70 bg-emerald-400/10 ring-2 ring-emerald-400/50 hover:bg-emerald-400/20'
+          : over
+            ? 'border-amber-400/70 bg-amber-400/15'
+            : matched.length > 0
+              ? 'border-amber-400/60 bg-amber-400/10 ring-1 ring-amber-400/40'
+              : filled
+                ? 'border-amber-400/25 bg-amber-400/5 hover:bg-amber-400/10'
+                : 'border-transparent hover:bg-white/5',
       ].join(' ')}
     >
       {/* Gema / círculo do slot */}

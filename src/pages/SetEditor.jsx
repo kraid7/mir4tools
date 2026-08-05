@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import SlotGrid from '../components/SlotGrid.jsx'
 import StoneForm from '../components/StoneForm.jsx'
@@ -6,7 +6,7 @@ import EnchantFilter from '../components/EnchantFilter.jsx'
 import StatsPanel from '../components/StatsPanel.jsx'
 import BagPanel from '../components/BagPanel.jsx'
 import ImageImport from '../components/ImageImport.jsx'
-import { useSets } from '../context/SetsContext.jsx'
+import { useSets, canEquip } from '../context/SetsContext.jsx'
 import { ALL_SLOTS } from '../data/slots.js'
 
 export default function SetEditor() {
@@ -32,6 +32,17 @@ export default function SetEditor() {
   const [filterEnchants, setFilterEnchants] = useState([])
   // Abre o modal de importação por imagem (OCR -> bolsa).
   const [importing, setImporting] = useState(false)
+  // Pedra "na mão": selecionada na bolsa por clique, aguardando um slot.
+  // Alternativa ao arrastar-e-soltar (essencial quando a bolsa está grande).
+  const [pickedBagId, setPickedBagId] = useState(null)
+
+  // Esc cancela a seleção.
+  useEffect(() => {
+    if (!pickedBagId) return
+    const onKey = (e) => e.key === 'Escape' && setPickedBagId(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pickedBagId])
 
   if (!set) {
     return (
@@ -79,6 +90,35 @@ export default function SetEditor() {
   const handleRename = () => {
     const name = window.prompt('Set name:', set.name)
     if (name != null) renameSet(set.id, name)
+  }
+
+  // Item da bolsa atualmente selecionado (some sozinho se a pedra sair da bolsa).
+  const pickedItem = pickedBagId ? (bag.find((b) => b.id === pickedBagId) ?? null) : null
+
+  // Clique no slot: com uma pedra selecionada, equipa/troca ali; senão, abre o
+  // formulário do slot como antes.
+  const handleSlotClick = (slot) => {
+    if (pickedItem) {
+      if (canEquip(pickedItem.stone, slot)) {
+        equipFromBag(set.id, slot.id, pickedItem.id)
+        setPickedBagId(null)
+      }
+      return
+    }
+    setEditing({ kind: 'slot', slotId: slot.id })
+  }
+
+  // Botão da bolsa: manda a pedra para o primeiro slot livre compatível. Se não
+  // houver nenhum livre, deixa a pedra selecionada para o usuário escolher qual
+  // trocar.
+  const handleQuickEquip = (item) => {
+    const free = ALL_SLOTS.find((s) => !stones[s.id] && canEquip(item.stone, s))
+    if (free) {
+      equipFromBag(set.id, free.id, item.id)
+      setPickedBagId(null)
+      return
+    }
+    setPickedBagId(item.id)
   }
 
   const equippedCount = Object.keys(stones).length
@@ -132,11 +172,13 @@ export default function SetEditor() {
           <div className="order-1 xl:order-2">
             <SlotGrid
               stones={stones}
-              onSlotClick={(slot) => setEditing({ kind: 'slot', slotId: slot.id })}
+              onSlotClick={handleSlotClick}
               onEquip={(slotId, bagId) => equipFromBag(set.id, slotId, bagId)}
               onClearSlots={handleClearToBag}
               equippedCount={equippedCount}
               highlight={filterEnchants}
+              pickedStone={pickedItem?.stone ?? null}
+              onCancelPick={() => setPickedBagId(null)}
             />
             <EnchantFilter
               stones={stones}
@@ -161,6 +203,9 @@ export default function SetEditor() {
               }
               onRemove={(bagId) => removeFromBag(set.id, bagId)}
               onDropToBag={(slotId) => unequipToBag(set.id, slotId)}
+              pickedId={pickedItem?.id ?? null}
+              onPick={(bagId) => setPickedBagId((cur) => (cur === bagId ? null : bagId))}
+              onQuickEquip={handleQuickEquip}
             />
           </aside>
         </div>
