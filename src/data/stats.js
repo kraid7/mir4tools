@@ -35,14 +35,21 @@ export function formatStatValue(value, unit) {
 }
 
 // Encantamentos de uma pedra que batem com os nomes do filtro (objetos completos
-// {name, value, unit}), na ordem canônica.
+// {name, value, unit}), na ordem canônica. Se a pedra tiver o mesmo encantamento
+// repetido, as ocorrências viram uma só com os valores somados (é o efeito real
+// na pedra — e evita duas linhas iguais na tela).
 export function matchedEnchantments(stone, names) {
   if (!names?.length) return []
   const wanted = new Set(names.map((n) => n.toLowerCase()))
-  const hits = (stone.enchantments || []).filter((e) =>
-    wanted.has((e.name || '').toLowerCase()),
-  )
-  return sortByCanonical(hits)
+  const acc = new Map()
+  for (const e of stone.enchantments || []) {
+    const key = (e.name || '').toLowerCase()
+    if (!wanted.has(key)) continue
+    const cur = acc.get(key)
+    if (cur) cur.value = (Number(cur.value) || 0) + (Number(e.value) || 0)
+    else acc.set(key, { ...e, value: Number(e.value) || 0 })
+  }
+  return sortByCanonical([...acc.values()])
 }
 
 function sortByCanonical(list) {
