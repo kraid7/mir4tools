@@ -12,9 +12,30 @@ export const DND_MIME = 'application/x-mir4-stone'
 // Espelho da carga do arrasto em andamento. Só é confiável dentro da mesma
 // aba/gesto de arraste, que é exatamente o caso de uso.
 let current = null
+let listening = false
+
+// Marca no <body> que há um arraste em curso. O CSS usa isso para esconder os
+// cartões de status, que senão cobrem o slot alvo bem na hora de soltar.
+function markDragging(on) {
+  if (typeof document === 'undefined') return
+  if (on) document.body.dataset.dragging = 'true'
+  else delete document.body.dataset.dragging
+}
+
+// Rede de segurança: solta a marcação mesmo que a pedra seja largada fora de
+// qualquer alvo (aí nenhum onDrop de componente roda).
+function listen(on) {
+  if (typeof window === 'undefined' || on === listening) return
+  const fn = on ? window.addEventListener : window.removeEventListener
+  fn.call(window, 'dragend', clearDragPayload)
+  fn.call(window, 'drop', clearDragPayload)
+  listening = on
+}
 
 export function setDragPayload(e, payload) {
   current = payload
+  markDragging(true)
+  listen(true)
   try {
     e.dataTransfer.setData(DND_MIME, JSON.stringify(payload))
     // Fallback para navegadores que só expõem text/plain durante o dragover.
@@ -41,4 +62,6 @@ export function getCurrentDrag() {
 
 export function clearDragPayload() {
   current = null
+  markDragging(false)
+  listen(false)
 }
