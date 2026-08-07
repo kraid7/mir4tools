@@ -1,22 +1,33 @@
 // Sugestão de loadout a partir do filtro de encantamentos.
 //
 // Dada a lista de encantamentos filtrados, escolhe entre TODAS as pedras do set
-// (equipadas + bolsa) quais devem ocupar cada slot para maximizar esses stats.
+// (equipadas + bolsa) quais devem ocupar cada slot.
 //
-// Pontuação: cada encantamento filtrado é normalizado pelo maior valor daquele
-// stat entre todas as pedras, virando 0–1. Sem isso o HP (flat, na casa dos
-// milhares) esmagaria stats percentuais como CRIT ATK DMG Boost. Cada
-// encantamento entra multiplicado pelo peso da sua posição no filtro (ver
-// PRIORITY_WEIGHTS); o score da pedra é a soma.
+// ——— Como um stat é medido ———
+// Cada encantamento é normalizado pelo maior valor daquele stat entre todas as
+// pedras. Sem isso o HP (flat, na casa dos milhares) esmagaria stats
+// percentuais como CRIT ATK DMG Boost. A posição no filtro vira peso: com N
+// encantamentos os pesos são N, N-1, ..., 1 (ver priorityWeight).
+//
+// ——— Como o conjunto é medido (o "balanceamento") ———
+// Somar os stats direto (modo 'total') maximiza a soma, mas empilha o filtro do
+// topo: 9 pedras de CRIT rendem mais pontos que 6 de CRIT + 3 do segundo stat,
+// e você acaba com zero do segundo. O modo 'balanced' (padrão) aplica retorno
+// decrescente — o valor de um stat é √(total), não total. Como a raiz é
+// côncava, os primeiros pontos de um stat que falta valem muito mais que o
+// décimo ponto de um que já está alto, então uma pedra que cobre 2 filtros
+// vence naturalmente uma que só reforça o primeiro. Sem bônus arbitrário.
+//
+// ——— Como as pedras são escolhidas ———
+// Com objetivo linear os slots formam um matroide e o greedy por score é ótimo.
+// Com o objetivo côncavo isso deixa de valer (e os dois grids deixam de ser
+// independentes, já que os stats somam entre pedras mágicas e espectromitas).
+// Então: greedy por ganho marginal sobre o conjunto todo + busca local por
+// trocas até não melhorar mais. Com 12 slots isso roda instantâneo e na prática
+// chega no ótimo.
 //
 // Uma pedra pode ter o MESMO encantamento repetido (ex.: dois "PHYS ATK"): os
 // valores repetidos são somados, tanto na pontuação quanto nos totais.
-//
-// Escolha: como os slots de um mesmo tipo só diferem no tier mínimo, o conjunto
-// de pedras "encaixável" é um matroide transversal — um conjunto S cabe se
-// |S| <= total de slots e |{tier 1 em S}| <= slots que aceitam tier 1. Logo
-// pegar as pedras em ordem decrescente de score, testando essa condição, dá o
-// resultado ótimo (não precisa de algoritmo de atribuição).
 
 import { MAGIC_SLOTS, SPECTRO_SLOTS, SLOT_TYPE } from './slots.js'
 import { ENCHANT_UNIT_BY_NAME } from './enchantments.js'
@@ -27,6 +38,12 @@ const num = (v) => {
 }
 
 const norm = (name) => (name || '').trim().toLowerCase()
+
+// Modos de balanceamento entre os encantamentos do filtro.
+export const BALANCE = {
+  BALANCED: 'balanced', // retorno decrescente: cobre todos os filtros
+  TOTAL: 'total', // soma pura: maximiza o total, pode zerar um filtro
+}
 
 // Valor de um encantamento na pedra (0 se ela não tiver). Encantamentos
 // repetidos na mesma pedra somam — é assim que o jogo aplica.
@@ -45,6 +62,8 @@ export function priorityWeight(index, total) {
   return Math.max(1, total - index)
 }
 
+const tierOf = (c) => c.stone?.tier ?? 1
+
 // Pedras equipadas + bolsa numa lista única, cada uma sabendo de onde veio.
 export function candidatesFrom(stones, bag) {
   const equipped = Object.entries(stones || {}).map(([slotId, stone]) => ({
@@ -62,66 +81,166 @@ export function candidatesFrom(stones, bag) {
   return [...equipped, ...inBag]
 }
 
-// Acrescenta .score a cada candidato: normalizado por stat e multiplicado pelo
-// peso da posição no filtro (o 1º encantamento manda mais).
-function withScores(candidates, keys) {
-  const max = new Map()
-  for (const k of keys) {
-    let m = 0
-    for (const c of candidates) m = Math.max(m, Math.abs(valueOf(c.stone, k)))
-    max.set(k, m)
-  }
-  return candidates.map((c) => {
-    let score = 0
-    keys.forEach((k, i) => {
-      const m = max.get(k)
-      if (m > 0) score += priorityWeight(i, keys.length) * (valueOf(c.stone, k) / m)
-    })
-    return { ...c, score }
+// ——— Capacidade dos grids ———
+// Um grupo aceita no máximo `slots.length` pedras, das quais no máximo
+// `lowSlots.length` podem ser tier 1 (o resto dos slots exige tier 2+).
+function groupsFor() {
+  const build = (slots) => ({
+    slots,
+    lowSlots: slots.filter((s) => s.minTier <= 1),
+    highSlots: slots.filter((s) => s.minTier >= 2),
+    count: 0,
+    tier1: 0,
   })
+  return {
+    [SLOT_TYPE.MAGIC]: build(MAGIC_SLOTS),
+    [SLOT_TYPE.SPECTRO]: build(SPECTRO_SLOTS),
+  }
 }
 
-const tierOf = (c) => c.stone?.tier ?? 1
+const groupOf = (groups, c) => groups[c.stone?.type] ?? null
 
-// Escolhe as melhores pedras de um tipo e as distribui entre os slots daquele
-// tipo. Empate no score: mantém quem já está equipado (evita bagunçar o set à
-// toa). Retorna { [slotId]: candidato }.
-function planGroup(slots, candidates) {
-  const lowSlots = slots.filter((s) => s.minTier <= 1) // aceitam tier 1
-  const highSlots = slots.filter((s) => s.minTier >= 2) // só tier 2+
+function fits(groups, c) {
+  const g = groupOf(groups, c)
+  if (!g) return false
+  if (g.count >= g.slots.length) return false
+  if (tierOf(c) < 2 && g.tier1 >= g.lowSlots.length) return false
+  return true
+}
 
-  const ranked = [...candidates].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score
+function take(groups, c, dir = 1) {
+  const g = groupOf(groups, c)
+  if (!g) return
+  g.count += dir
+  if (tierOf(c) < 2) g.tier1 += dir
+}
+
+// ——— Objetivo ———
+// `totals` é o total bruto de cada encantamento filtrado no conjunto atual.
+function makeObjective(keys, maxes, weights, mode) {
+  const shape = mode === BALANCE.TOTAL ? (x) => x : (x) => Math.sqrt(x)
+  return (totals) => {
+    let v = 0
+    for (let i = 0; i < keys.length; i++) {
+      const m = maxes[i]
+      if (m > 0) v += weights[i] * shape(Math.max(0, totals[i]) / m)
+    }
+    return v
+  }
+}
+
+const addTo = (totals, stone, keys, dir = 1) =>
+  totals.map((t, i) => t + dir * valueOf(stone, keys[i]))
+
+// Escolhe o conjunto de pedras. Retorna a lista escolhida.
+function pickStones(candidates, keys, maxes, weights, mode) {
+  const objective = makeObjective(keys, maxes, weights, mode)
+  const groups = groupsFor()
+  const chosen = []
+  const remaining = new Set(candidates)
+  let totals = keys.map(() => 0)
+  let current = objective(totals)
+
+  // 1) Greedy por ganho marginal: a cada rodada entra a pedra que mais
+  // acrescenta ao conjunto — é isso que faz a pedra que cobre um filtro ainda
+  // descoberto passar na frente da que só reforça um filtro já saturado.
+  for (;;) {
+    let best = null
+    let bestGain = 1e-12 // só entra quem acrescenta algo
+    let bestTotals = null
+    for (const c of remaining) {
+      if (!fits(groups, c)) continue
+      const next = addTo(totals, c.stone, keys)
+      const gain = objective(next) - current
+      const better =
+        gain > bestGain ||
+        // Empate: mantém quem já está equipado (menos troca à toa).
+        (gain === bestGain && best && c.from === 'slot' && best.from !== 'slot')
+      if (better) {
+        best = c
+        bestGain = gain
+        bestTotals = next
+      }
+    }
+    if (!best) break
+    chosen.push(best)
+    remaining.delete(best)
+    take(groups, best)
+    totals = bestTotals
+    current = objective(totals)
+  }
+
+  // 2) Busca local: troca uma escolhida por uma de fora sempre que melhorar.
+  // Corrige a miopia do greedy (uma pedra boa cedo pode bloquear um par melhor).
+  for (let pass = 0; pass < 40; pass++) {
+    let improved = false
+    for (let i = 0; i < chosen.length; i++) {
+      const out = chosen[i]
+      let bestIn = null
+      let bestVal = current
+      let bestTotals = null
+      for (const c of remaining) {
+        if (c.stone?.type !== out.stone?.type) continue
+        // Cabe no lugar da que sai? Só o tier pode inviabilizar.
+        take(groups, out, -1)
+        const ok = fits(groups, c)
+        take(groups, out, 1)
+        if (!ok) continue
+        const next = addTo(addTo(totals, out.stone, keys, -1), c.stone, keys)
+        const val = objective(next)
+        if (val > bestVal + 1e-12) {
+          bestIn = c
+          bestVal = val
+          bestTotals = next
+        }
+      }
+      if (bestIn) {
+        take(groups, out, -1)
+        take(groups, bestIn, 1)
+        remaining.add(out)
+        remaining.delete(bestIn)
+        chosen[i] = bestIn
+        totals = bestTotals
+        current = bestVal
+        improved = true
+      }
+    }
+    if (!improved) break
+  }
+
+  // 3) Slots que sobraram: completa com o resto, preferindo quem já está
+  // equipado, para não desmontar o set por nada.
+  const rest = [...remaining].sort((a, b) => {
     if ((a.from === 'slot') !== (b.from === 'slot')) return a.from === 'slot' ? -1 : 1
     return tierOf(b) - tierOf(a)
   })
-
-  // Greedy sobre o matroide: pega enquanto couber.
-  const chosen = []
-  let usedTier1 = 0
-  for (const c of ranked) {
-    if (chosen.length >= slots.length) break
-    if (tierOf(c) >= 2) {
-      chosen.push(c)
-    } else if (usedTier1 < lowSlots.length) {
-      chosen.push(c)
-      usedTier1 += 1
-    }
+  for (const c of rest) {
+    if (!fits(groups, c)) continue
+    chosen.push(c)
+    take(groups, c)
   }
 
-  // Distribuição: os slots de tier 2+ têm que receber pedras tier 2+. Reserva
-  // essas primeiro (preferindo quem já está num slot alto), e o resto vai para
-  // os slots de tier 1+. Dentro de cada grupo, quem já estava no slot fica nele.
+  return chosen
+}
+
+// Distribui as pedras escolhidas de um tipo entre os slots daquele tipo.
+// Os slots de tier 2+ têm que receber pedras tier 2+, então essas são
+// reservadas primeiro (preferindo quem já está num slot alto); o resto vai para
+// os slots de tier 1+. Em ambos os grupos, quem já estava no slot fica nele.
+function placeGroup(slots, chosen, rank) {
+  const lowSlots = slots.filter((s) => s.minTier <= 1)
+  const highSlots = slots.filter((s) => s.minTier >= 2)
+  const highIds = new Set(highSlots.map((s) => s.id))
+
   const tier2 = chosen.filter((c) => tierOf(c) >= 2)
   const tier1 = chosen.filter((c) => tierOf(c) < 2)
-  const highIds = new Set(highSlots.map((s) => s.id))
 
   const forHigh = [...tier2]
     .sort((a, b) => {
       const aIn = a.from === 'slot' && highIds.has(a.slotId)
       const bIn = b.from === 'slot' && highIds.has(b.slotId)
       if (aIn !== bIn) return aIn ? -1 : 1
-      return b.score - a.score
+      return rank(b) - rank(a)
     })
     .slice(0, highSlots.length)
 
@@ -133,7 +252,6 @@ function planGroup(slots, candidates) {
     const free = new Set(groupSlots.map((s) => s.id))
     const pending = []
     for (const c of group) {
-      // Já está neste slot? Mantém — nenhuma troca desnecessária.
       if (c.from === 'slot' && free.has(c.slotId)) {
         assignments[c.slotId] = c
         free.delete(c.slotId)
@@ -153,24 +271,39 @@ function planGroup(slots, candidates) {
   return assignments
 }
 
-// Total de um encantamento somando as pedras equipadas de um loadout.
-function totalFor(stoneList, key) {
-  return stoneList.reduce((sum, stone) => sum + valueOf(stone, key), 0)
-}
-
-// Monta a sugestão completa. `names` são os encantamentos do filtro.
-// Retorna null se não houver filtro.
-export function suggestLoadout(stones, bag, names) {
+// Monta a sugestão completa. `names` são os encantamentos do filtro, na ordem
+// de prioridade. Retorna null se não houver filtro.
+export function suggestLoadout(stones, bag, names, mode = BALANCE.BALANCED) {
   const keys = [...new Set((names || []).map(norm).filter(Boolean))]
   if (keys.length === 0) return null
 
-  const all = withScores(candidatesFrom(stones, bag), keys)
-  const magic = all.filter((c) => c.stone?.type === SLOT_TYPE.MAGIC)
-  const spectro = all.filter((c) => c.stone?.type === SLOT_TYPE.SPECTRO)
+  const all = candidatesFrom(stones, bag)
+  const maxes = keys.map((k) =>
+    all.reduce((m, c) => Math.max(m, Math.abs(valueOf(c.stone, k))), 0),
+  )
+  const weights = keys.map((_, i) => priorityWeight(i, keys.length))
 
+  // Score isolado da pedra (só para desempate de posicionamento e para a UI).
+  const rank = (c) => {
+    let s = 0
+    keys.forEach((k, i) => {
+      if (maxes[i] > 0) s += weights[i] * (valueOf(c.stone, k) / maxes[i])
+    })
+    return s
+  }
+
+  const chosen = pickStones(all, keys, maxes, weights, mode)
   const assignments = {
-    ...planGroup(MAGIC_SLOTS, magic),
-    ...planGroup(SPECTRO_SLOTS, spectro),
+    ...placeGroup(
+      MAGIC_SLOTS,
+      chosen.filter((c) => c.stone?.type === SLOT_TYPE.MAGIC),
+      rank,
+    ),
+    ...placeGroup(
+      SPECTRO_SLOTS,
+      chosen.filter((c) => c.stone?.type === SLOT_TYPE.SPECTRO),
+      rank,
+    ),
   }
 
   const usedKeys = new Set(Object.values(assignments).map((c) => c.key))
@@ -183,19 +316,29 @@ export function suggestLoadout(stones, bag, names) {
     const after = assignments[slot.id] ?? null
     const same = after?.from === 'slot' && after.slotId === slot.id
     if (!same && (before || after)) {
-      changes.push({ slot, before, after: after?.stone ?? null, source: after ?? null })
+      changes.push({
+        slot,
+        before,
+        after: after?.stone ?? null,
+        source: after ?? null,
+        // Quais filtros a pedra que entra cobre — mostra o "cobre os 2".
+        covers: after
+          ? (names || []).filter((n) => valueOf(after.stone, norm(n)) > 0)
+          : [],
+      })
     }
   }
 
   const beforeStones = Object.values(stones || {})
   const afterStones = Object.values(assignments).map((c) => c.stone)
+  const totalFor = (list, key) => list.reduce((sum, st) => sum + valueOf(st, key), 0)
+
   const totals = keys.map((key, i) => {
     const display = (names || []).find((n) => norm(n) === key) ?? key
     const unit =
       ENCHANT_UNIT_BY_NAME[display] ??
-      all
-        .flatMap((c) => c.stone?.enchantments || [])
-        .find((e) => norm(e.name) === key)?.unit ??
+      all.flatMap((c) => c.stone?.enchantments || []).find((e) => norm(e.name) === key)
+        ?.unit ??
       'flat'
     return {
       name: display,
@@ -203,11 +346,11 @@ export function suggestLoadout(stones, bag, names) {
       before: totalFor(beforeStones, key),
       after: totalFor(afterStones, key),
       order: i,
-      weight: priorityWeight(i, keys.length),
+      weight: weights[i],
     }
   })
 
-  return { assignments, leftover, changes, totals }
+  return { assignments, leftover, changes, totals, mode }
 }
 
 // Converte a sugestão no formato que o contexto aplica: mapa de slots + bolsa.

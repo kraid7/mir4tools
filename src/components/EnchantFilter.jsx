@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import { ENCHANTMENTS, enchantIconPath } from '../data/enchantments.js'
 import { buildStoneName } from '../data/slots.js'
 import { formatStatValue } from '../data/stats.js'
-import { suggestLoadout, loadoutToState } from '../data/suggest.js'
+import { suggestLoadout, loadoutToState, BALANCE } from '../data/suggest.js'
 
 function slotLabel(slotId) {
   const [type, n] = slotId.split('-')
@@ -92,14 +92,15 @@ function TotalRow({ t }) {
 export default function EnchantFilter({ stones, bag = [], selected, onChange, onApply }) {
   const [input, setInput] = useState('')
   const [showSuggestion, setShowSuggestion] = useState(false)
+  const [mode, setMode] = useState(BALANCE.BALANCED)
   const listId = useId()
   const sources = sourcesFrom(stones, bag)
 
   // A prévia só é calculada depois que o usuário pede; a partir daí acompanha
-  // mudanças no filtro e nas pedras.
+  // mudanças no filtro, nas pedras e no modo.
   const suggestion = useMemo(
-    () => (showSuggestion ? suggestLoadout(stones, bag, selected) : null),
-    [showSuggestion, stones, bag, selected],
+    () => (showSuggestion ? suggestLoadout(stones, bag, selected, mode) : null),
+    [showSuggestion, stones, bag, selected, mode],
   )
 
   const applySuggestion = () => {
@@ -197,6 +198,38 @@ export default function EnchantFilter({ stones, bag = [], selected, onChange, on
 
           {suggestion && (
             <div className="mt-4 flex flex-col gap-4">
+              {selected.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    {
+                      id: BALANCE.BALANCED,
+                      label: 'Balanced',
+                      hint: 'Covers every enchantment in the filter — a stone that has two of them beats one that only stacks the first.',
+                    },
+                    {
+                      id: BALANCE.TOTAL,
+                      label: 'Max total',
+                      hint: 'Maximizes the weighted sum. Can stack the top filter and leave the others at zero.',
+                    },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setMode(m.id)}
+                      title={m.hint}
+                      className={[
+                        'rounded-md px-2.5 py-1 text-xs font-medium transition',
+                        mode === m.id
+                          ? 'bg-amber-500/20 text-amber-200 ring-1 ring-amber-400/40'
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200',
+                      ].join(' ')}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <ul className="divide-y divide-white/5">
                 {suggestion.totals.map((t) => (
                   <TotalRow key={t.name} t={t} />
@@ -225,6 +258,27 @@ export default function EnchantFilter({ stones, bag = [], selected, onChange, on
                         <span className="min-w-0 flex-1 truncate font-medium text-emerald-200">
                           {c.after ? buildStoneName(c.after) : 'empty'}
                         </span>
+                        {c.covers.length > 0 && selected.length > 1 && (
+                          <span
+                            className="flex shrink-0 items-center gap-0.5"
+                            title={`Covers ${c.covers.length} of ${selected.length} filters: ${c.covers.join(', ')}`}
+                          >
+                            {c.covers.map((n) => {
+                              const ico = enchantIconPath(n)
+                              return ico ? (
+                                <img
+                                  key={n}
+                                  src={ico}
+                                  alt=""
+                                  className="size-4 object-contain"
+                                />
+                              ) : null
+                            })}
+                            <span className="text-[10px] font-semibold text-slate-400">
+                              {c.covers.length}/{selected.length}
+                            </span>
+                          </span>
+                        )}
                         {c.source?.from === 'bag' && (
                           <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
                             Bag
