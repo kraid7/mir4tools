@@ -72,6 +72,7 @@ export default function BagPanel({
     e.preventDefault()
     setOver(false)
     const payload = getDragPayload(e)
+    clearDragPayload()
     if (payload?.from === 'slot' && payload.slotId) onDropToBag(payload.slotId)
   }
 

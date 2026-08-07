@@ -17,3 +17,10 @@ body {
   color: #e8e0d0;
   font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
 }
+
+/* Enquanto uma pedra está sendo arrastada, o cartão de status sai da frente:
+   ele cobriria justamente o slot alvo e o aviso de verde/vermelho. O atributo
+   é ligado e desligado pelo dnd.js. */
+body[data-dragging] [role="tooltip"] {
+  display: none !important;
+}
