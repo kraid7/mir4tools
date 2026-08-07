@@ -26,6 +26,7 @@ export default function SlotGrid({
   stones,
   onSlotClick,
   onEquip,
+  onSwap,
   onClearSlots,
   equippedCount = 0,
   highlight = [],
@@ -69,29 +70,34 @@ export default function SlotGrid({
       )}
 
       <Panel title="Magic Stones" hint="6× Tier 1+ · 3× Tier 2+" action={clearAction}>
-        {MAGIC_SLOTS.map((slot) => (
+        {MAGIC_SLOTS.map((slot, i) => (
           <Slot
             key={slot.id}
             slot={slot}
             stone={stones[slot.id]}
             onClick={onSlotClick}
             onEquip={onEquip}
+            onSwap={onSwap}
             highlight={highlight}
             pickState={pickState(slot)}
+            // Última coluna: abre o tooltip para a esquerda para não vazar.
+            align={i % 3 === 2 ? 'right' : 'left'}
           />
         ))}
       </Panel>
 
       <Panel title="Spectromite" hint="2× Tier 1+ · 1× Tier 2+">
-        {SPECTRO_SLOTS.map((slot) => (
+        {SPECTRO_SLOTS.map((slot, i) => (
           <Slot
             key={slot.id}
             slot={slot}
             stone={stones[slot.id]}
             onClick={onSlotClick}
             onEquip={onEquip}
+            onSwap={onSwap}
             highlight={highlight}
             pickState={pickState(slot)}
+            align={i % 3 === 2 ? 'right' : 'left'}
           />
         ))}
       </Panel>

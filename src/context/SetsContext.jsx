@@ -186,6 +186,28 @@ export function SetsProvider({ children }) {
       }),
     )
 
+  // Troca duas pedras de lugar dentro do grid (arrastar de um slot para outro).
+  // Se o destino estiver vazio, é só uma mudança de posição. Só aplica se AMBAS
+  // as pedras couberem nos slots que vão ocupar — senão a troca deixaria uma
+  // pedra tier 1 num slot que exige tier 2.
+  const swapSlots = (id, fromSlotId, toSlotId) =>
+    setSets((prev) =>
+      prev.map((s) => {
+        if (s.id !== id || fromSlotId === toSlotId) return s
+        const fromSlot = ALL_SLOTS.find((sl) => sl.id === fromSlotId)
+        const toSlot = ALL_SLOTS.find((sl) => sl.id === toSlotId)
+        const moving = s.stones?.[fromSlotId]
+        const displaced = s.stones?.[toSlotId]
+        if (!fromSlot || !toSlot || !moving) return s
+        if (!canEquip(moving, toSlot)) return s
+        if (displaced && !canEquip(displaced, fromSlot)) return s
+        const stones = { ...s.stones, [toSlotId]: moving }
+        if (displaced) stones[fromSlotId] = displaced
+        else delete stones[fromSlotId]
+        return { ...s, stones }
+      }),
+    )
+
   // Aplica um loadout inteiro de uma vez (slots + bolsa), usado pela sugestão
   // do filtro. Itens de bolsa sem id ganham um novo (vieram de um slot).
   const applyLoadout = (id, stones, bagItems) =>
@@ -234,6 +256,7 @@ export function SetsProvider({ children }) {
     unequipToBag,
     unequipAllToBag,
     equipFromBag,
+    swapSlots,
     applyLoadout,
     addSets,
   }

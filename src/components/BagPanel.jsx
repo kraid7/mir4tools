@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { buildStoneName, tierToRoman } from '../data/slots.js'
 import { getStoneIcon } from '../data/stoneIcons.js'
-import { setDragPayload, getDragPayload } from '../data/dnd.js'
+import { setDragPayload, getDragPayload, clearDragPayload } from '../data/dnd.js'
 import { matchedEnchantments, formatStatValue } from '../data/stats.js'
 import { enchantIconPath } from '../data/enchantments.js'
+import StoneTooltip from './StoneTooltip.jsx'
 
 // Mini-ícone de uma pedra (arte oficial, com fallback de gema neutra).
 function StoneIcon({ stone }) {
@@ -166,10 +167,18 @@ export default function BagPanel({
             <li
               key={item.id}
               draggable
-              onDragStart={(e) => setDragPayload(e, { from: 'bag', bagId: item.id })}
+              onDragStart={(e) =>
+                setDragPayload(e, {
+                  from: 'bag',
+                  bagId: item.id,
+                  type: item.stone.type,
+                  tier: item.stone.tier ?? 1,
+                })
+              }
+              onDragEnd={clearDragPayload}
               onClick={() => onPick?.(item.id)}
               className={[
-                'group flex cursor-grab items-center gap-2.5 rounded-lg border p-2 active:cursor-grabbing',
+                'group/tip group relative flex cursor-grab items-center gap-2.5 rounded-lg border p-2 active:cursor-grabbing',
                 pickedId === item.id
                   ? 'border-emerald-400/70 bg-emerald-400/10 ring-2 ring-emerald-400/50'
                   : isMatch
@@ -239,6 +248,9 @@ export default function BagPanel({
                   ✕
                 </button>
               </div>
+
+              {/* Status completos ao passar o mouse */}
+              <StoneTooltip stone={item.stone} highlight={highlight} align="right" />
             </li>
             )
           })}
