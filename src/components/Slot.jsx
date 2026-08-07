@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { buildStoneName, tierToRoman } from '../data/slots.js'
 import { getStoneIcon } from '../data/stoneIcons.js'
-import { setDragPayload, getDragPayload } from '../data/dnd.js'
+import {
+  setDragPayload,
+  getDragPayload,
+  getCurrentDrag,
+  clearDragPayload,
+} from '../data/dnd.js'
 import { matchedEnchantments, formatStatValue } from '../data/stats.js'
 import { enchantIconPath } from '../data/enchantments.js'
+import StoneTooltip from './StoneTooltip.jsx'
 
 // Ícone real da pedra (arte oficial do MIR4) quando disponível; senão, gema
 // neutra estilizada como fallback. Feedback visual de "slot preenchido".
@@ -16,8 +22,10 @@ export default function Slot({
   stone,
   onClick,
   onEquip,
+  onSwap,
   highlight = [],
   pickState = null,
+  align = 'left',
 }) {
   const filled = Boolean(stone)
   const name = buildStoneName(stone)
@@ -26,11 +34,31 @@ export default function Slot({
   const icon = filled && !imgError ? getStoneIcon(stone) : null
   const matched = filled ? matchedEnchantments(stone, highlight) : []
 
+  // Este slot aceita a pedra que está sendo arrastada? Precisa do tipo e do
+  // tier certos e, numa troca entre slots, a pedra daqui também tem que caber
+  // no slot de origem — senão a troca deixaria uma pedra em slot inválido.
+  const accepts = (p) => {
+    if (!p) return false
+    if (p.from === 'slot' && p.slotId === slot.id) return false
+    if (p.type !== slot.type) return false
+    if ((p.tier ?? 1) < slot.minTier) return false
+    if (p.from === 'slot' && filled && (stone.tier ?? 1) < (p.minTier ?? 1)) return false
+    return true
+  }
+
+  // Durante o dragover o dataTransfer é ilegível, então consulta o espelho.
+  // `over` no estado é o que dispara o re-render neste instante.
+  const incoming = over ? getCurrentDrag() : null
+  const dropState = incoming ? (accepts(incoming) ? 'ok' : 'no') : null
+
   const handleDrop = (e) => {
     e.preventDefault()
     setOver(false)
     const payload = getDragPayload(e)
-    if (payload?.from === 'bag' && payload.bagId) onEquip?.(slot.id, payload.bagId)
+    clearDragPayload()
+    if (!accepts(payload)) return
+    if (payload.from === 'bag' && payload.bagId) onEquip?.(slot.id, payload.bagId)
+    else if (payload.from === 'slot' && payload.slotId) onSwap?.(payload.slotId, slot.id)
   }
 
   return (
@@ -39,8 +67,19 @@ export default function Slot({
       onClick={() => onClick?.(slot)}
       draggable={filled}
       onDragStart={(e) =>
-        filled && setDragPayload(e, { from: 'slot', slotId: slot.id })
+        filled &&
+        setDragPayload(e, {
+          from: 'slot',
+          slotId: slot.id,
+          type: stone.type,
+          tier: stone.tier ?? 1,
+          minTier: slot.minTier,
+        })
       }
+      onDragEnd={() => {
+        clearDragPayload()
+        setOver(false)
+      }}
       onDragOver={(e) => {
         e.preventDefault()
         setOver(true)
@@ -55,21 +94,25 @@ export default function Slot({
           : pickState === 'no'
             ? `Incompatible slot — Min tier ${slot.minTier}`
             : filled
-              ? name
+              ? undefined // o tooltip com os status cobre isso
               : `Empty slot — Min tier ${slot.minTier}`
       }
       className={[
-        'group flex w-full items-center gap-3 rounded-lg border p-1.5 text-left transition',
+        'group/tip group relative flex w-full items-center gap-3 rounded-lg border p-1.5 text-left transition',
         pickState === 'no' ? 'cursor-not-allowed opacity-40' : '',
         pickState === 'ok'
           ? 'border-emerald-400/70 bg-emerald-400/10 ring-2 ring-emerald-400/50 hover:bg-emerald-400/20'
-          : over
-            ? 'border-amber-400/70 bg-amber-400/15'
-            : matched.length > 0
-              ? 'border-amber-400/60 bg-amber-400/10 ring-1 ring-amber-400/40'
-              : filled
-                ? 'border-amber-400/25 bg-amber-400/5 hover:bg-amber-400/10'
-                : 'border-transparent hover:bg-white/5',
+          : dropState === 'ok'
+            ? 'border-emerald-400/70 bg-emerald-400/15 ring-2 ring-emerald-400/50'
+            : dropState === 'no'
+              ? 'border-rose-400/60 bg-rose-500/10 ring-1 ring-rose-400/40'
+              : over
+                ? 'border-amber-400/70 bg-amber-400/15'
+                : matched.length > 0
+                  ? 'border-amber-400/60 bg-amber-400/10 ring-1 ring-amber-400/40'
+                  : filled
+                    ? 'border-amber-400/25 bg-amber-400/5 hover:bg-amber-400/10'
+                    : 'border-transparent hover:bg-white/5',
       ].join(' ')}
     >
       {/* Gema / círculo do slot */}
@@ -171,6 +214,9 @@ export default function Slot({
       ) : (
         <span className="text-slate-500">—</span>
       )}
+
+      {/* Status completos ao passar o mouse */}
+      {filled && <StoneTooltip stone={stone} highlight={highlight} align={align} />}
     </button>
   )
 }

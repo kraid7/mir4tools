@@ -23,6 +23,7 @@ export default function SetEditor() {
     unequipToBag,
     unequipAllToBag,
     equipFromBag,
+    swapSlots,
     applyLoadout,
   } = useSets()
 
@@ -175,6 +176,7 @@ export default function SetEditor() {
               stones={stones}
               onSlotClick={handleSlotClick}
               onEquip={(slotId, bagId) => equipFromBag(set.id, slotId, bagId)}
+              onSwap={(fromSlotId, toSlotId) => swapSlots(set.id, fromSlotId, toSlotId)}
               onClearSlots={handleClearToBag}
               equippedCount={equippedCount}
               highlight={filterEnchants}
