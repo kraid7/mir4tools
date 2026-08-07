@@ -23,6 +23,7 @@ export default function SetEditor() {
     unequipToBag,
     unequipAllToBag,
     equipFromBag,
+    applyLoadout,
   } = useSets()
 
   const set = getSet(id)
@@ -185,6 +186,10 @@ export default function SetEditor() {
               bag={bag}
               selected={filterEnchants}
               onChange={setFilterEnchants}
+              onApply={(nextStones, nextBag) => {
+                applyLoadout(set.id, nextStones, nextBag)
+                setPickedBagId(null)
+              }}
             />
           </div>
 

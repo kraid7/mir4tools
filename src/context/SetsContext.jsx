@@ -186,6 +186,21 @@ export function SetsProvider({ children }) {
       }),
     )
 
+  // Aplica um loadout inteiro de uma vez (slots + bolsa), usado pela sugestão
+  // do filtro. Itens de bolsa sem id ganham um novo (vieram de um slot).
+  const applyLoadout = (id, stones, bagItems) =>
+    setSets((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              stones,
+              bag: (bagItems || []).map((it) => ({ id: it.id ?? uid(), stone: it.stone })),
+            }
+          : s,
+      ),
+    )
+
   const getSet = (id) => sets.find((s) => s.id === id) ?? null
 
   // Acrescenta sets importados (ids novos; favorito zerado para não conflitar).
@@ -219,6 +234,7 @@ export function SetsProvider({ children }) {
     unequipToBag,
     unequipAllToBag,
     equipFromBag,
+    applyLoadout,
     addSets,
   }
 
